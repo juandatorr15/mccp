@@ -1,13 +1,19 @@
 # MCCP - Multi-Channel Content Processor
 
-Aplicacion fullstack que permite redactar contenido, procesarlo mediante IA para obtener un resumen ejecutivo (max 100 caracteres) y distribuirlo automaticamente a multiples canales: Email, Slack y SMS.
+Aplicacion fullstack que permite redactar contenido, procesarlo mediante IA para obtener un resumen ejecutivo (max 100 caracteres) y distribuirlo a multiples canales: Email, Slack y SMS.
+
+---
 
 ## Stack Tecnologico
 
-- **Backend:** PHP 8.4 + Laravel 12
-- **Frontend:** React 19 + Tailwind CSS (via Vite)
-- **Base de datos:** PostgreSQL
-- **IA:** Soporte para OpenAI, Claude (Anthropic) y Google Gemini
+| Componente | Tecnologia |
+|---|---|
+| Backend | PHP 8.4 + Laravel 12 |
+| Frontend | React 19 + Tailwind CSS (Vite) |
+| Base de datos | PostgreSQL |
+| IA | OpenAI / Claude (Anthropic) / Google Gemini |
+
+---
 
 ## Arquitectura
 
@@ -73,6 +79,8 @@ Aplicacion fullstack que permite redactar contenido, procesarlo mediante IA para
 └──────────────────────────────────────────────────────────┘
 ```
 
+---
+
 ## Estructura del Proyecto
 
 ```
@@ -102,6 +110,8 @@ routes/
 ├── api.php                          # GET/POST /api/messages
 └── web.php                          # Vista principal (SPA React)
 ```
+
+---
 
 ## Configuracion e Instalacion
 
@@ -143,10 +153,10 @@ DB_USERNAME=tu_usuario
 DB_PASSWORD=tu_password
 
 # Proveedor de IA (openai, claude o gemini)
-AI_PROVIDER=gemini
+AI_PROVIDER=claude
 OPENAI_API_KEY=
-CLAUDE_API_KEY=
-GEMINI_API_KEY=tu_api_key_aqui
+CLAUDE_API_KEY=tu_api_key_aqui
+GEMINI_API_KEY=
 
 # Slack Webhook (URL de Webhook.site o Beeceptor)
 SLACK_WEBHOOK_URL=https://webhook.site/tu-uuid
@@ -170,17 +180,20 @@ php artisan serve
 
 La aplicacion estara disponible en `http://localhost:8000`
 
+---
+
 ## API Endpoints
 
 ### `POST /api/messages`
 
-Crea un nuevo mensaje, genera resumen IA y lo distribuye a todos los canales.
+Crea un nuevo mensaje, genera resumen IA y lo distribuye a los canales seleccionados.
 
 **Request:**
 ```json
 {
     "title": "Titulo del mensaje",
-    "content": "Contenido completo del mensaje..."
+    "content": "Contenido completo del mensaje...",
+    "channels": ["email", "slack", "sms"]
 }
 ```
 
@@ -204,10 +217,22 @@ Crea un nuevo mensaje, genera resumen IA y lo distribuye a todos los canales.
 
 Retorna el historial de todos los mensajes con sus logs de entrega.
 
+---
+
 ## Resiliencia
 
-- **Si la IA falla:** No se envia a ningun canal. El mensaje queda con status `failed` y todos los delivery_logs registran el error.
-- **Si un canal falla:** Los demas canales se procesan normalmente. Solo el canal afectado queda con status `failed` y su error registrado.
+| Escenario | Comportamiento |
+|---|---|
+| **IA falla** | No se envia a ningun canal. Mensaje queda `failed`. Todos los delivery_logs registran el error. |
+| **Un canal falla** | Los demas canales se procesan normalmente. Solo el canal afectado queda `failed`. |
+
+### Ejemplo de resiliencia (Slack fallo, Email y SMS exitosos):
+
+![Dashboard mostrando resiliencia de canales](docs/images/dashboard-historial.png)
+
+En la imagen se puede observar el mensaje "Test Resiliencia" con estado `completed`: el canal Email y SMS quedaron con estado `sent` (verde) mientras que Slack quedo `failed` (rojo), demostrando que la falla de un canal no afecta a los demas.
+
+---
 
 ## Simulacion de Canales
 
@@ -218,7 +243,9 @@ Simula una llamada REST. El payload completo se loguea en `storage/logs/laravel.
 ```
 
 ### Slack (Webhook)
-Realiza un POST real a la URL configurada en `SLACK_WEBHOOK_URL` (Webhook.site o Beeceptor).
+Realiza un POST real a la URL configurada en `SLACK_WEBHOOK_URL`.
+
+**URL de prueba:** `https://webhook.site/374fddd0-a684-49b0-a4fc-a4173f176ed4`
 
 ### SMS (SOAP)
 Genera un XML SOAP estructurado y lo loguea en `storage/logs/laravel.log`:
@@ -235,15 +262,51 @@ Genera un XML SOAP estructurado y lo loguea en `storage/logs/laravel.log`:
 </soapenv:Envelope>
 ```
 
+---
+
 ## Evidencia
 
-### Logs (storage/logs/laravel.log)
-_(Agregar screenshots de los logs mostrando el payload de Email y el XML de SMS)_
+### Dashboard - Historial de mensajes
 
-### Webhook.site (Slack)
-**URL:** `https://webhook.site/374fddd0-a684-49b0-a4fc-a4173f176ed4`
+![Dashboard con historial de mensajes](docs/images/dashboard-historial.png)
 
-_(Agregar screenshots del POST recibido en Webhook.site)_
+Se observa el historial completo con:
+- Mensajes exitosos (`completed`) con resumen de IA generado
+- Mensajes fallidos (`failed`) cuando la API de IA no estaba disponible
+- Estado detallado por canal (email, slack, sms) con badges de color
+- Prueba de resiliencia: "Test Resiliencia" con Slack fallido y Email/SMS exitosos
+
+### Webhook.site - POST real de Slack
+
+![POST recibido en Webhook.site](docs/images/webhook-slack.png)
+
+Se confirma la recepcion del POST en Webhook.site con el payload completo:
+```json
+{
+    "title": "Prueba Final MCCP",
+    "summary": "Prueba final de validacion de canales: email, slack y sms funcionando correctamente",
+    "original_content": "Este es el mensaje final de prueba para validar que todos los canales funcionan correctamente: email, slack y sms."
+}
+```
+
+---
+
+## Pruebas
+
+El proyecto incluye 16 tests con 37 assertions:
+
+```bash
+php artisan test
+```
+
+| Tipo | Test | Descripcion |
+|---|---|---|
+| Feature | `MessageTest` | Creacion de mensajes, relaciones HasMany/BelongsTo, cast de payload |
+| Feature | `MessageApiTest` | Validacion de API, campos requeridos, canales permitidos, historial |
+| Feature | `ChannelIntegrationTest` | Logueo de payload Email, generacion XML SOAP de SMS |
+| Unit | `ChannelTest` | Nombres correctos de cada canal |
+
+---
 
 ## Descripcion de la Solucion
 
