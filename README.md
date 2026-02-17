@@ -4,6 +4,19 @@ Aplicacion fullstack que permite redactar contenido, procesarlo mediante IA para
 
 ---
 
+## Demo en Produccion
+
+La aplicacion esta desplegada en Railway y se puede validar directamente sin instalacion local:
+
+| Recurso | URL |
+|---|---|
+| **Aplicacion** | https://mccp-production.up.railway.app |
+| **Log Viewer** | https://mccp-production.up.railway.app/log-viewer |
+
+> El Log Viewer permite visualizar en tiempo real los logs generados por los canales (Email, Slack, SMS) y cualquier error del sistema.
+
+---
+
 ## Stack Tecnologico
 
 | Componente | Tecnologia |
